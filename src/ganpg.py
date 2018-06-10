@@ -1,29 +1,10 @@
-"""
-GAN Net Definition by Haoyu Yang @CUHK-CSE
-
-Last Modified: Sept-28-2017
-"""
 
 
-try:
-    import tensorflow as tf
-    import tensorflow.contrib.slim as slim
-except:
-    print("Tensorflow Not Found")
-    tf = None
+import tensorflow as tf
+import tensorflow.contrib.slim as slim
 import numpy as np
 from scipy.misc import *
 import skimage.measure as skm
-def debug():
-    print("===========================DEBUG==============================")
-
-def randVector(dim=24, batch=16):
-    shape = [batch, 1,1,dim]
-    tmp=tf.random_uniform(shape,minval=-1,maxval=1,dtype=tf.float32)
-    return tmp
-
-def leakyRelu(x, alpha=0.2):
-    return tf.maximum(alpha*x, x)
 
 def stochasticInputProducer(imgLoc, batchSize, randSampling, pixelSize = 8):
     with open(imgLoc) as f:
@@ -52,21 +33,31 @@ def fwdGeneratorAE(net, is_training = True):
                       normalizer_fn=slim.batch_norm,
                       normalizer_params={'is_training': is_training}):
 
-        net = slim.conv2d(net, 16, [5,5], stride=2, padding='same', scope='g_conv7') #128
-        net = slim.conv2d(net, 64, [5,5], stride=2, padding='same', scope='g_conv6') #64
-        net = slim.conv2d(net, 128, [5,5], stride=2, padding='same', scope='g_conv5') #32
-        net = slim.conv2d(net, 512, [5,5], stride=2, padding='same', scope='g_conv4') #16
-        net = slim.conv2d(net, 1024, [5,5], stride=2, padding='same', scope='g_conv3') #8
-        #net = slim.conv2d(net, 512, [5,5], stride=2, padding='same', scope='g_conv2')
-        #net = slim.conv2d(net, 1024, [4,4], stride=4, padding='same', scope='g_conv1')
-        #net = slim.conv2d_transpose(net, 1024, [4,4], stride=4, padding='same', scope='g_dconv1')
-        #net = slim.conv2d_transpose(net, 512, [5,5], stride=2, padding='same', scope='g_dconv2')
-        net = slim.conv2d_transpose(net, 512, [5,5], stride=2, padding='same', scope='g_dconv3') #16
-        net = slim.conv2d_transpose(net, 128, [5,5], stride=2, padding='same', scope='g_dconv4') #32
-        net = slim.conv2d_transpose(net, 64, [5,5], stride=2, padding='same', scope='g_dconv5') #64
-        net = slim.conv2d_transpose(net, 16, [5,5], stride=2, padding='same', scope='g_dconv6') #128
-        net = slim.conv2d_transpose(net, 1, [5,5], stride=2, padding='same', scope='g_dconv7') #256
-    return net
+        net1 = slim.conv2d(net, 16, [5,5], stride=2, padding='same', scope='g_conv7') #128
+        net2 = slim.conv2d(net1, 64, [5,5], stride=2, padding='same', scope='g_conv6') #64
+        net3 = slim.conv2d(net2, 128, [5,5], stride=2, padding='same', scope='g_conv5') #32
+        net4 = slim.conv2d(net3, 512, [5,5], stride=2, padding='same', scope='g_conv4') #16
+
+        net5 = slim.conv2d(net4, 1024, [5,5], stride=2, padding='same', scope='g_conv3') #8
+
+        net6 = slim.conv2d_transpose(net5, 512, [5,5], stride=2, padding='same', scope='g_dconv3') #16
+        net6 = tf.concat([net4,net6],3)
+
+        net7 = slim.conv2d_transpose(net6, 128, [5,5], stride=2, padding='same', scope='g_dconv4') #32
+        net7 = tf.concat([net3,net7],3)
+
+        net8 = slim.conv2d_transpose(net7, 64, [5,5], stride=2, padding='same', scope='g_dconv5') #64
+        net8 = tf.concat([net2,net8],3)
+
+        net9 = slim.conv2d_transpose(net8, 16, [5,5], stride=2, padding='same', scope='g_dconv6') #128
+        net9 = tf.concat([net1,net9],3)
+
+        net10 = slim.conv2d_transpose(net9, 1, [5,5], stride=2, padding='same', scope='g_dconv7') #256
+        net_list = [net1,net2,net3,net4,net5,net6,net7,net8,net9,net10]
+        for i in range(0,10):
+            print('net'+str(i)+':',tf.shape(net_list[i]))
+
+    return net10
 
 def fwdDiscriminator(net, is_training = True, reuse=False):
     with tf.variable_scope('discriminator') as scope:
