@@ -5,16 +5,12 @@ import os
 from datetime import datetime
 import random
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-'''
 config = tf.ConfigProto()
 # use GPU0
 config.gpu_options.visible_device_list = '0'
 # allocate 50% of GPU memory
 config.gpu_options.allow_growth = True
-config.gpu_options.per_process_gpu_memory_fraction = 0.5
-session = tf.Session(config=config)
-'''
+#config.gpu_options.per_process_gpu_memory_fraction = 0.5
 # return format input
 def inputProducer(preimgLoc, postimgLoc, batchSize, step, pixelSize=8):
     with open(preimgLoc) as fo:
@@ -88,13 +84,13 @@ x_fakeAB = tf.concat([x_realA, x_fakeB], 3)
 d_real = fwdDiscriminator(x_realAB)
 d_fake = fwdDiscriminator(x_fakeAB, reuse=True)
 
-g_loss_gan = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=d_fake, labels=y_real))
+g_loss_gan = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=d_fake,labels=y_real))
 g_loss_L1 = L1_lambda*tf.reduce_mean(tf.squared_difference(x_fakeB, x_realB))
 
 g_loss = g_loss_gan + g_loss_L1
 
-d_loss_real = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=d_real, labels=y_real))
-d_loss_fake = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=d_fake, labels=y_fake))
+d_loss_real = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=d_real,labels=y_real))
+d_loss_fake = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=d_fake,labels=y_fake))
 d_loss = d_loss_real + d_loss_fake
 
 t_vars = tf.trainable_variables()
@@ -105,10 +101,12 @@ dopt = tf.train.RMSPropOptimizer(lr).minimize(d_loss, var_list=d_vars)
 gopt = tf.train.RMSPropOptimizer(lr).minimize(g_loss, var_list=g_vars)
 
 
-with tf.Session() as sess:
+with tf.Session(config=config) as sess:
     # Send summary statistics to TensorBoard
     tf.summary.scalar('total_Generator_loss', g_loss)
+    tf.summary.scalar('pure_Generator_loss', g_loss_gan)
     tf.summary.scalar('Generator_loss_L1',g_loss_L1)
+    tf.summary.scalar('total_Discriminator_loss',d_loss)
     tf.summary.scalar('Discriminator_loss_real', d_loss_real)
     tf.summary.scalar('Discriminator_loss_fake', d_loss_fake)
     merged = tf.summary.merge_all()
@@ -119,11 +117,14 @@ with tf.Session() as sess:
     saver = tf.train.Saver(max_to_keep=100)
 
     # load model
+    trained_step = -1
     ckpt = tf.train.get_checkpoint_state(save_path)
     if ckpt and ckpt.model_checkpoint_path:
         ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
         print('[*] RESTORE model: %s' % ckpt_name)
         saver.restore(sess, os.path.join(save_path, ckpt_name))
+        trained_step = int('-'.split(ckpt_name)[1])
+        print('continue after %s steps'%(trained_step))
     else:
         print("[*] LOAD failed!")
 
@@ -131,7 +132,7 @@ with tf.Session() as sess:
     _y_real = np.zeros((batch_size, 2), dtype=np.float32)
     _y_fake = np.zeros((batch_size, 2), dtype=np.float32)
 
-    for step in range(maxitr):
+    for step in range(trained_step+1,trained_step+maxitr):
 
 
         with open(preimg_loc) as fo:
@@ -158,8 +159,8 @@ with tf.Session() as sess:
         )
 
         if step % print_step == 0:
-            format_str = ('[%d\%d] %s g_loss: %f, L1 loss: %f, d_loss: %f, d_fake: %f, d_real: %f, lr: %f')
-            print(format_str % (step, maxitr, datetime.now(), _g_loss, _g_loss_L1, _d_loss, _d_loss_fake, _d_loss_real, lr))
+            format_str = ('[%d\%d] %s g_loss: %f, L1 loss: %f, d_loss: %f, d_fake: %f,d_real: %f, lr: %f')
+            print(format_str % (step, maxitr, datetime.now(), _g_loss, _g_loss_L1, _d_loss,_d_loss_fake, _d_loss_real, lr))
             print(_y_real[0, 0], _y_real[0, 1])
 
         if step % sample_step == sample_step - 1:
