@@ -6,8 +6,8 @@ from datetime import datetime
 import random
 
 config = tf.ConfigProto()
-# use GPU0
-config.gpu_options.visible_device_list = '0'
+# use GPU1
+config.gpu_options.visible_device_list = '1'
 # allocate 50% of GPU memory
 config.gpu_options.allow_growth = True
 #config.gpu_options.per_process_gpu_memory_fraction = 0.5
