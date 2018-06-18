@@ -1,7 +1,9 @@
-
-
-import tensorflow as tf
-import tensorflow.contrib.slim as slim
+try:
+    import tensorflow as tf
+    import tensorflow.contrib.slim as slim
+except:
+    print("Tensorflow Not Found")
+    tf = None
 import numpy as np
 from scipy.misc import *
 import skimage.measure as skm
@@ -53,9 +55,10 @@ def fwdGeneratorAE(net, is_training = True):
         net9 = tf.concat([net1,net9],3)
 
         net10 = slim.conv2d_transpose(net9, 1, [5,5], stride=2, padding='same', scope='g_dconv7') #256
-        net_list = [net1,net2,net3,net4,net5,net6,net7,net8,net9,net10]
-        for i in range(0,10):
-            print('net'+str(i)+':',tf.shape(net_list[i]))
+
+        smooth_kernal = tf.constant(1.0,shape=[5,5,1,1])
+        net10 = tf.nn.conv2d(net10,smooth_kernal,[1,1,1,1],'SAME')
+        net10 = net10/5
 
     return net10
 
@@ -90,3 +93,4 @@ def fwdDiscriminator(net, is_training = True, reuse=False):
             net = slim.dropout(net, 0.5, scope='d_dropout7', is_training=is_training)
             net = slim.fully_connected(net, 2, activation_fn=None, scope='d_fc8')
     return net
+
